@@ -1,19 +1,19 @@
 ---
 source: macro/src/lib.rs
-expression: "rustfmt_code(&expand_grammar(parse_quote! {\n                                #[rust_sitter :: grammar(\"test\")] mod grammar\n                                {\n                                    #[rust_sitter :: language] pub enum Expression\n                                    {\n                                        Number(#[rust_sitter ::\n                                        leaf(pattern = r\"\\d+\", transform = | v | v.parse :: < i32 >\n                                        ().unwrap())] i32),\n                                    }\n                                }\n                            })?.to_token_stream().to_string())"
+expression: "rustfmt_code(&expand_grammar(parse_quote!\n{\n    #[rust_sitter::grammar(\"test\")] mod grammar\n    {\n        #[rust_sitter::language] pub enum Expression\n        {\n            Number(#[rust_sitter::leaf(pattern = r\"\\d+\", transform = |v|\n            v.parse::<i32>().unwrap())] i32),\n        }\n    }\n})? .to_token_stream().to_string())"
 ---
 mod grammar {
     pub enum Expression {
         Number(i32),
     }
     impl ::rust_sitter::Extract<Expression> for Expression {
-        type LeafFn = ();
+        type LeafOut = ();
         #[allow(non_snake_case)]
         fn extract(
             node: Option<::rust_sitter::tree_sitter::Node>,
             source: &[u8],
             _last_idx: usize,
-            _leaf_fn: Option<&Self::LeafFn>,
+            _leaf_fn: Option<fn(&str) -> Self::LeafOut>,
         ) -> Self {
             let node = node.unwrap();
             let mut cursor = node.walk();
@@ -37,7 +37,7 @@ mod grammar {
                                         source,
                                         last_idx,
                                         "0",
-                                        Some(&|v| v.parse::<i32>().unwrap()),
+                                        Some(|v| v.parse::<i32>().unwrap()),
                                     )
                                 })
                             },
@@ -67,4 +67,3 @@ mod grammar {
         ::rust_sitter::__private::parse::<Expression>(input, language)
     }
 }
-

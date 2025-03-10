@@ -56,7 +56,7 @@ fn gen_field(ident_str: String, leaf: Field) -> Expr {
             non_leaf.insert("Option");
             non_leaf.insert("Vec");
             let wrapped_leaf_type = wrap_leaf_type(&leaf_type, &non_leaf);
-            (wrapped_leaf_type, syn::parse_quote!(Some(&#closure)))
+            (wrapped_leaf_type, syn::parse_quote!(Some(#closure)))
         }
         None => (leaf_type, syn::parse_quote!(None)),
     };
@@ -249,10 +249,10 @@ pub fn expand_grammar(input: ItemMod) -> Result<ItemMod> {
                     let enum_name = &e.ident;
                     let extract_impl: Item = syn::parse_quote! {
                         impl ::rust_sitter::Extract<#enum_name> for #enum_name {
-                            type LeafFn = ();
+                            type LeafOut = ();
 
                             #[allow(non_snake_case)]
-                            fn extract(node: Option<::rust_sitter::tree_sitter::Node>, source: &[u8], _last_idx: usize, _leaf_fn: Option<&Self::LeafFn>) -> Self {
+                            fn extract(node: Option<::rust_sitter::tree_sitter::Node>, source: &[u8], _last_idx: usize, _leaf_fn: Option<fn(&str) -> Self::LeafOut>) -> Self {
                                 let node = node.unwrap();
 
                                 let mut cursor = node.walk();
@@ -289,10 +289,10 @@ pub fn expand_grammar(input: ItemMod) -> Result<ItemMod> {
 
                     let extract_impl: Item = syn::parse_quote! {
                         impl ::rust_sitter::Extract<#struct_name> for #struct_name {
-                            type LeafFn = ();
+                            type LeafOut = ();
 
                             #[allow(non_snake_case)]
-                            fn extract(node: Option<::rust_sitter::tree_sitter::Node>, source: &[u8], last_idx: usize, _leaf_fn: Option<&Self::LeafFn>) -> Self {
+                            fn extract(node: Option<::rust_sitter::tree_sitter::Node>, source: &[u8], last_idx: usize, _leaf_fn: Option<fn(&str) -> Self::LeafOut>) -> Self {
                                 let node = node.unwrap();
                                 #extract_expr
                             }

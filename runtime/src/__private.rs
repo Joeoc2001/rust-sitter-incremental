@@ -26,7 +26,7 @@ pub fn extract_field<LT: Extract<T>, T>(
     source: &[u8],
     last_idx: &mut usize,
     field_name: &str,
-    closure_ref: Option<&LT::LeafFn>,
+    closure_ref: Option<fn(&str) -> LT::LeafOut>,
 ) -> T {
     if let Some(cursor) = cursor_opt.as_mut() {
         loop {

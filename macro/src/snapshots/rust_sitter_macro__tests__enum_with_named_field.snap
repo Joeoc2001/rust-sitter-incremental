@@ -1,6 +1,6 @@
 ---
 source: macro/src/lib.rs
-expression: "rustfmt_code(&expand_grammar(parse_quote! {\n                                #[rust_sitter :: grammar(\"test\")] mod grammar\n                                {\n                                    #[rust_sitter :: language] pub enum Expr\n                                    {\n                                        Number(#[rust_sitter ::\n                                        leaf(pattern = r\"\\d+\", transform = | v |\n                                        v.parse().unwrap())] u32), Neg\n                                        {\n                                            #[rust_sitter :: leaf(text = \"!\")] _bang : (), value : Box <\n                                            Expr >,\n                                        }\n                                    }\n                                }\n                            })?.to_token_stream().to_string())"
+expression: "rustfmt_code(&expand_grammar(parse_quote!\n{\n    #[rust_sitter::grammar(\"test\")] mod grammar\n    {\n        #[rust_sitter::language] pub enum Expr\n        {\n            Number(#[rust_sitter::leaf(pattern = r\"\\d+\", transform = |v|\n            v.parse().unwrap())] u32), Neg\n            { #[rust_sitter::leaf(text = \"!\")] _bang: (), value: Box<Expr>, }\n        }\n    }\n})? .to_token_stream().to_string())"
 ---
 mod grammar {
     pub enum Expr {
@@ -8,13 +8,13 @@ mod grammar {
         Neg { _bang: (), value: Box<Expr> },
     }
     impl ::rust_sitter::Extract<Expr> for Expr {
-        type LeafFn = ();
+        type LeafOut = ();
         #[allow(non_snake_case)]
         fn extract(
             node: Option<::rust_sitter::tree_sitter::Node>,
             source: &[u8],
             _last_idx: usize,
-            _leaf_fn: Option<&Self::LeafFn>,
+            _leaf_fn: Option<fn(&str) -> Self::LeafOut>,
         ) -> Self {
             let node = node.unwrap();
             let mut cursor = node.walk();
@@ -34,7 +34,7 @@ mod grammar {
                                         rust_sitter::WithLeaf<u32>,
                                         _,
                                     >(
-                                        cursor, source, last_idx, "0", Some(&|v| v.parse().unwrap())
+                                        cursor, source, last_idx, "0", Some(|v| v.parse().unwrap())
                                     )
                                 })
                             },
@@ -81,4 +81,3 @@ mod grammar {
         ::rust_sitter::__private::parse::<Expr>(input, language)
     }
 }
-
