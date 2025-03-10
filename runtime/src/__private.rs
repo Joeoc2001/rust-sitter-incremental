@@ -86,3 +86,17 @@ pub fn parse<T: Extract<T, Arena>, Arena: Default>(
         Ok((root, arena))
     }
 }
+
+/// To allow for pre-allocation before parsing an AST, a tree-sitter grammar is traversed
+/// and the number of nodes pointed to by a handle is counted.
+///
+/// This trait gives the type that the count is counted in to, and then the `ArenaCountFor`
+/// trait is used to increment the counter for some specific held type `T`.
+pub trait ArenaCount {
+    type Counter;
+}
+
+pub trait ArenaCountFor<T>: ArenaCount {
+    fn inc(counter: &mut Self::Counter);
+    fn get(counter: &Self::Counter) -> usize;
+}

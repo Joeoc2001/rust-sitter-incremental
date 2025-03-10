@@ -253,12 +253,27 @@ impl<T> ArenaInsert<T> for Arena<T> {
     }
 }
 
+impl<T> __private::ArenaCount for Arena<T> {
+    type Counter = usize;
+}
+
+impl<T> __private::ArenaCountFor<T> for Arena<T> {
+    fn inc(counter: &mut Self::Counter) {
+        *counter += 1;
+    }
+    fn get(counter: &Self::Counter) -> usize {
+        *counter
+    }
+}
+
 /// Defines the logic used to convert a node in a Tree Sitter tree to
 /// the corresponding Rust type.
 ///
 /// The arena parameter holds the nodes pointed to by [`Handle`]s.
-pub trait Extract<Output, Arena> {
+pub trait Extract<Output, Arena: __private::ArenaCount> {
     type LeafFn: ?Sized;
+    /// Counts the occurances of handles in the tree starting at `node` to allow for pre-allocation.
+    fn count_handles(node: Option<tree_sitter::Node>, counter: &mut Arena::Counter);
     fn extract(
         arena: &mut Arena,
         node: Option<tree_sitter::Node>,
@@ -272,9 +287,10 @@ pub struct WithLeaf<L> {
     _phantom: std::marker::PhantomData<L>,
 }
 
-impl<L, Arena> Extract<L, Arena> for WithLeaf<L> {
+impl<L, Arena: __private::ArenaCount> Extract<L, Arena> for WithLeaf<L> {
     type LeafFn = dyn Fn(&str) -> L;
 
+    fn count_handles(_node: Option<tree_sitter::Node>, _counter: &mut Arena::Counter) {}
     fn extract(
         _arena: &mut Arena,
         node: Option<tree_sitter::Node>,
@@ -288,8 +304,10 @@ impl<L, Arena> Extract<L, Arena> for WithLeaf<L> {
     }
 }
 
-impl<Arena> Extract<(), Arena> for () {
+impl<Arena: __private::ArenaCount> Extract<(), Arena> for () {
     type LeafFn = ();
+
+    fn count_handles(_node: Option<tree_sitter::Node>, _counter: &mut Arena::Counter) {}
     fn extract(
         _arena: &mut Arena,
         _node: Option<tree_sitter::Node>,
@@ -300,8 +318,16 @@ impl<Arena> Extract<(), Arena> for () {
     }
 }
 
-impl<T: Extract<U, Arena>, U, Arena> Extract<Option<U>, Arena> for Option<T> {
+impl<T: Extract<U, Arena>, U, Arena: __private::ArenaCount> Extract<Option<U>, Arena>
+    for Option<T>
+{
     type LeafFn = T::LeafFn;
+
+    fn count_handles(node: Option<tree_sitter::Node>, counter: &mut Arena::Counter) {
+        if let Some(node) = node {
+            T::count_handles(Some(node), counter);
+        }
+    }
     fn extract(
         arena: &mut Arena,
         node: Option<tree_sitter::Node>,
@@ -313,8 +339,12 @@ impl<T: Extract<U, Arena>, U, Arena> Extract<Option<U>, Arena> for Option<T> {
     }
 }
 
-impl<T: Extract<U, Arena>, U, Arena> Extract<Box<U>, Arena> for Box<T> {
+impl<T: Extract<U, Arena>, U, Arena: __private::ArenaCount> Extract<Box<U>, Arena> for Box<T> {
     type LeafFn = T::LeafFn;
+
+    fn count_handles(node: Option<tree_sitter::Node>, counter: &mut Arena::Counter) {
+        T::count_handles(node, counter);
+    }
     fn extract(
         arena: &mut Arena,
         node: Option<tree_sitter::Node>,
@@ -326,8 +356,15 @@ impl<T: Extract<U, Arena>, U, Arena> Extract<Box<U>, Arena> for Box<T> {
     }
 }
 
-impl<T: Extract<U, Arena>, U, Arena: ArenaInsert<U>> Extract<Handle<U>, Arena> for Handle<T> {
+impl<T: Extract<U, Arena>, U, Arena: ArenaInsert<U> + __private::ArenaCountFor<T>>
+    Extract<Handle<U>, Arena> for Handle<T>
+{
     type LeafFn = T::LeafFn;
+
+    fn count_handles(node: Option<tree_sitter::Node>, counter: &mut Arena::Counter) {
+        Arena::inc(counter);
+        T::count_handles(node, counter);
+    }
     fn extract(
         arena: &mut Arena,
         node: Option<tree_sitter::Node>,
@@ -340,8 +377,12 @@ impl<T: Extract<U, Arena>, U, Arena: ArenaInsert<U>> Extract<Handle<U>, Arena> f
     }
 }
 
-impl<T: Extract<U, Arena>, U, Arena> Extract<Vec<U>, Arena> for Vec<T> {
+impl<T: Extract<U, Arena>, U, Arena: __private::ArenaCount> Extract<Vec<U>, Arena> for Vec<T> {
     type LeafFn = T::LeafFn;
+
+    fn count_handles(node: Option<tree_sitter::Node>, counter: &mut Arena::Counter) {
+        T::count_handles(node, counter);
+    }
     fn extract(
         arena: &mut Arena,
         node: Option<tree_sitter::Node>,
@@ -391,7 +432,9 @@ impl<T> Deref for Spanned<T> {
     }
 }
 
-impl<T: Extract<U, Arena>, U, Arena> Extract<Spanned<U>, Arena> for Spanned<T> {
+impl<T: Extract<U, Arena>, U, Arena: __private::ArenaCount> Extract<Spanned<U>, Arena>
+    for Spanned<T>
+{
     type LeafFn = T::LeafFn;
     fn extract(
         arena: &mut Arena,
