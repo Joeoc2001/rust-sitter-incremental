@@ -1,6 +1,6 @@
 pub mod __private;
 
-use std::ops::Deref;
+use std::ops::{Deref, Index, IndexMut};
 
 pub use rust_sitter_macro::*;
 
@@ -373,7 +373,7 @@ impl<T: Extract<U, Arena>, U, Arena> Extract<Vec<U>, Arena> for Vec<T> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// A wrapper around a value that also contains the span of the value in the source.
 pub struct Spanned<T> {
     /// The underlying parsed node.
@@ -406,6 +406,20 @@ impl<T: Extract<U, Arena>, U, Arena> Extract<Spanned<U>, Arena> for Spanned<T> {
                 .map(|n| (n.start_byte(), n.end_byte()))
                 .unwrap_or((last_idx, last_idx)),
         }
+    }
+}
+
+impl<T> Index<Spanned<T>> for str {
+    type Output = str;
+
+    fn index(&self, index: Spanned<T>) -> &Self::Output {
+        &self[index.span.0..index.span.1]
+    }
+}
+
+impl<T> IndexMut<Spanned<T>> for str {
+    fn index_mut(&mut self, index: Spanned<T>) -> &mut Self::Output {
+        &mut self[index.span.0..index.span.1]
     }
 }
 
